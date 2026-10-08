@@ -4,8 +4,8 @@ set -euo pipefail
 [[ "$(uname -s)" == Linux ]] || { echo 'Deploy on the Oracle VM only.'; exit 1; }
 cd "$(dirname "$0")/.."
 [[ -f .env ]] || { echo 'Create a private production .env on the VM first.'; exit 1; }
-[[ -f /etc/letsencrypt/live/gnkalgo.com/fullchain.pem ]] || { echo 'Provision the gnkalgo.com TLS certificate first; see docs/ORACLE_PRODUCTION.md.'; exit 1; }
-[[ -f /etc/letsencrypt/live/gnkalgo.com/privkey.pem ]] || { echo 'TLS private key missing.'; exit 1; }
+[[ -f /etc/letsencrypt/live/gnkalgo.com/fullchain.pem ]] || sudo -n test -f /etc/letsencrypt/live/gnkalgo.com/fullchain.pem || { echo 'Provision the gnkalgo.com TLS certificate first; see docs/ORACLE_PRODUCTION.md.'; exit 1; }
+[[ -f /etc/letsencrypt/live/gnkalgo.com/privkey.pem ]] || sudo -n test -f /etc/letsencrypt/live/gnkalgo.com/privkey.pem || { echo 'TLS private key missing or inaccessible.'; exit 1; }
 [[ "$(git remote get-url origin)" == 'https://github.com/Boop-12/GNK_AI.git' ]] || { echo 'Unexpected Git remote.'; exit 1; }
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || { echo 'Tracked deployment files have local changes; review them before deploying.'; exit 1; }
 compose=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
