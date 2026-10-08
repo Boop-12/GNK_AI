@@ -59,3 +59,9 @@ jobs:
           cp .env.example .env
           printf '\nJWT_SECRET_KEY=%s\nPOSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" >> .env
           docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+      - name: Verify production schema and service readiness in the cloud
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --wait postgres redis
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --no-deps api alembic upgrade head
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --wait api web
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api python -c "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8000/readyz', timeout=10).status == 200"
