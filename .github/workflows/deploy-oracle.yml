@@ -40,7 +40,7 @@ jobs:
           [[ "$ORACLE_HOST" =~ ^[a-zA-Z0-9.-]+$ ]] && [[ "$ORACLE_USER" =~ ^[a-zA-Z0-9_-]+$ ]]
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$ORACLE_USER@$ORACLE_HOST" bash -s -- "$RELEASE_SHA" <<'REMOTE'
           set -euo pipefail
-          cd /opt/gnkalgo-ai
+          cd /opt/gnkalgo_AI
           test "$(git remote get-url origin)" = 'https://github.com/Boop-12/GNK_AI.git'
           test "$(git branch --show-current)" = main
           test -z "$(git status --porcelain --untracked-files=no)"

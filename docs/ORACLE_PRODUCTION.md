@@ -13,14 +13,14 @@ and Certbot installed by the operator. Point gnkalgo.com and www.gnkalgo.com to
 its public IP. Allow TCP 80/443 in Oracle NSG/security lists and the host firewall;
 restrict SSH to trusted sources. Do not expose PostgreSQL, Redis, API, or Next.js ports.
 
-The example path below is a proposed new deployment, not a verified existing path.
+The verified deployment directory is /opt/gnkalgo_AI on ubuntu@130.210.34.12.
 The SSH identity must be able to use Docker. Docker-group access is effectively root.
 
 ```bash
-sudo mkdir -p /opt/gnkalgo-ai
-sudo chown "$USER:$USER" /opt/gnkalgo-ai
-git clone https://github.com/Boop-12/GNK_AI.git /opt/gnkalgo-ai
-cd /opt/gnkalgo-ai
+sudo mkdir -p /opt/gnkalgo_AI
+sudo chown "$USER:$USER" /opt/gnkalgo_AI
+git clone https://github.com/Boop-12/GNK_AI.git /opt/gnkalgo_AI
+cd /opt/gnkalgo_AI
 cp .env.example .env
 chmod 600 .env
 openssl rand -hex 32
@@ -43,10 +43,10 @@ Skip issuance if a valid certificate covering both names already exists at the
 expected path. These bootstrap commands assume ports 80/443 are free for this stack.
 
 ```bash
-cd /opt/gnkalgo-ai
+cd /opt/gnkalgo_AI
 mkdir -p certbot/www
 docker compose -f docker-compose.yml -f docker-compose.acme.yml up -d --no-deps nginx
-sudo certbot certonly --webroot --webroot-path /opt/gnkalgo-ai/certbot/www \
+sudo certbot certonly --webroot --webroot-path /opt/gnkalgo_AI/certbot/www \
   --email YOUR_OPERATOR_EMAIL --agree-tos --no-eff-email \
   -d gnkalgo.com -d www.gnkalgo.com
 ```
@@ -57,7 +57,7 @@ use its verified ACME webroot instead of starting a competing Nginx container.
 ## 3. Deploy and verify
 
 ```bash
-cd /opt/gnkalgo-ai
+cd /opt/gnkalgo_AI
 git pull --ff-only origin main
 bash scripts/deploy-production.sh
 curl --fail --head https://www.gnkalgo.com
@@ -77,7 +77,7 @@ ORACLE_HOST, ORACLE_USER, ORACLE_SSH_KEY, ORACLE_KNOWN_HOSTS.
 The known-hosts entry must be verified against the VM's host fingerprint through
 an independent trusted channel. Do not disable SSH host verification.
 
-The workflow uses /opt/gnkalgo-ai and requires the existing checkout on main,
+The workflow uses /opt/gnkalgo_AI and requires the existing checkout on main,
 exact origin URL, and no tracked local changes. If using a different directory,
 edit the workflow's fixed path deliberately. Run Cloud verification and wait for
 success, then manually dispatch Deploy Oracle production from main. It refuses
@@ -89,8 +89,8 @@ on the production environment if desired. Secrets are not included in source.
 Enable certbot.timer and configure a renewal deploy hook to run:
 
 ```bash
-docker compose --project-directory /opt/gnkalgo-ai \
-  -f /opt/gnkalgo-ai/docker-compose.yml -f /opt/gnkalgo-ai/docker-compose.prod.yml \
+docker compose --project-directory /opt/gnkalgo_AI \
+  -f /opt/gnkalgo_AI/docker-compose.yml -f /opt/gnkalgo_AI/docker-compose.prod.yml \
   exec -T nginx nginx -s reload
 sudo certbot renew --dry-run
 ```
