@@ -22,8 +22,10 @@ fi
 "${compose[@]}" build api web
 "${compose[@]}" up -d --wait postgres redis
 "${compose[@]}" run --rm --no-deps api alembic upgrade head
-"${compose[@]}" up -d --wait api web nginx
-# Refresh upstream container addresses after API/web replacement.
+"${compose[@]}" up -d --wait api web
+# Git replaces config file inodes; recreate Nginx to refresh its single-file mount.
+"${compose[@]}" up -d --no-deps --force-recreate --wait nginx
+# Validate the mounted configuration and current upstream container addresses.
 "${compose[@]}" exec -T nginx nginx -t
 "${compose[@]}" exec -T nginx nginx -s reload
 # Require both database schema and Redis readiness before calling the release healthy.

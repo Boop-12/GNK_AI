@@ -52,6 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate production deployment script syntax
+        run: bash -n scripts/deploy-production.sh
       - run: docker build -t gnk-api ./backend
       - run: docker build -t gnk-web ./frontend
       - name: Validate production deployment configuration
