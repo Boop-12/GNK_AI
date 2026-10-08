@@ -47,7 +47,7 @@ def verify_profile(broker_id: str, account_id: str, access_token: str):
     if broker_id == "dhan":
         request = Request("https://api.dhan.co/v2/profile", headers={"access-token": access_token}, method="GET")
     else:
-        request = Request("https://api-t1.fyers.in/api/v3/profile", headers={"Authorization": f"{account_id}:{access_token}"}, method="GET")
+        request = Request("https://api-t1.fyers.in/api/v3/profile", headers={"Authorization": f"{account_id}:{access_token}", "User-Agent": "Mozilla/5.0 (compatible; GNKALGO/1.0)"}, method="GET")
     try:
         with build_opener(NoRedirect()).open(request, timeout=15) as response:
             raw = response.read(262145)

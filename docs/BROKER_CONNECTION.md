@@ -11,7 +11,8 @@ to match. FYERS users enter App ID and an existing Access Token. Verification ca
 https://api-t1.fyers.in/api/v3/profile using Authorization: AppID:AccessToken.
 FYERS App Secret alone is not an Access Token. Generate a token through FYERS'
 official authorization flow first; its registered callback is required there.
-This release does not implement token generation or automatic renewal.
+GNK also offers FYERS authorization through the callback described in
+FYERS_OAUTH.md. Automatic token renewal is not implemented.
 
 Optional admin-owned credentials on Oracle: DHAN_CLIENT_ID, DHAN_ACCESS_TOKEN,
 FYERS_APP_ID and FYERS_ACCESS_TOKEN. Only the admin role can use these settings.
@@ -33,8 +34,8 @@ that timestamp; it does not promise a currently live data feed. A new failed log
 clears previous verification. Live quotes, account balances and persistent broker
 sessions are not implemented. Order execution remains disabled.
 
-REDIRECT_URL stays blank for existing-token verification and XTS direct login.
-Future broker OAuth adapters will need their exact registered HTTPS callback URLs.
+REDIRECT_URL is optional for existing-token verification and XTS direct login.
+FYERS OAuth requires the exact registered GNK HTTPS callback; see FYERS_OAUTH.md.
 
 Reference: https://github.com/symphonyfintech/xts-pythonclient-api-sdk
 References: https://dhanhq.co/docs/v2/authentication/

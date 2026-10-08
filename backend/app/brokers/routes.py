@@ -7,6 +7,7 @@ from app.dependencies import get_current_user, require_same_origin
 from app.models import User
 from app.brokers.connection import clear_verification, record_verification, verification, verify_xts, verify_profile
 from app.rate_limit import enforce_rate_limit
+from app.brokers.oauth import oauth_ready
 
 router = APIRouter(prefix="/brokers", tags=["brokers"])
 
@@ -23,6 +24,7 @@ class BrokerStatusOut(BaseModel):
     connectionAvailable: bool = False
     adminCredentialsAvailable: bool = False
     verifiedAt: str | None = None
+    oauthAvailable: bool = False
 
 
 def user_status(settings, broker_id, user):
@@ -30,6 +32,7 @@ def user_status(settings, broker_id, user):
     if status is None:
         return None
     status["connectionAvailable"] = broker_id != "xts" or bool(settings.xts_market_data_base_url)
+    status["oauthAvailable"] = broker_id == "fyers" and oauth_ready(settings)
     status["adminCredentialsAvailable"] = any(role.name == "admin" for role in user.roles) and status["marketDataConfigured"]
     saved = verification(user.id, broker_id)
     if saved:

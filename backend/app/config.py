@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     dhan_client_id: str = ""
     dhan_access_token: SecretStr = SecretStr("")
     fyers_app_id: str = ""
+    fyers_app_secret: SecretStr = SecretStr("")
     fyers_access_token: SecretStr = SecretStr("")
     xts_market_data_base_url: str = ""
     xts_market_data_app_key: str = ""

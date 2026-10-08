@@ -9,7 +9,7 @@ import { authRequest, protectedRequest, SessionExpiredError, setAccessToken, typ
 
 type View = "dashboard" | "broker" | "account" | "appearance" | "admin";
 type Status = { mode: string; liveExecutionEnabled: boolean; ai: { available: boolean; status: string }; brokerVerified: boolean; lastChecked: string };
-type Broker = { broker: string; name: string; status: string; marketDataStatus: string; tradingStatus: string; connectionAvailable: boolean; adminCredentialsAvailable: boolean; verifiedAt?: string };
+type Broker = { broker: string; name: string; status: string; marketDataStatus: string; tradingStatus: string; connectionAvailable: boolean; adminCredentialsAvailable: boolean; oauthAvailable?: boolean; verifiedAt?: string };
 const brokerNames = ["Dhan", "Fyers", "Zerodha", "Upstox", "Angel One", "5paisa", "Alice Blue", "Groww", "HDFC", "Kotak", "Shoonya", "Samco", "IndMoney", "XTS"];
 const nav = [["dashboard", "/dashboard", "◫", "Dashboard"], ["broker", "/broker", "⇄", "Broker connection"], ["account", "/account", "◎", "My account"], ["appearance", "/profile/appearance", "◐", "Appearance"]];
 const titles: Record<View, string> = { dashboard: "Your research workspace", broker: "Choose your broker", account: "Your account", appearance: "Make it your workspace", admin: "User administration" };
@@ -93,6 +93,21 @@ function BrokerSelection({ brokers, onConnected }: { brokers: Broker[]; onConnec
   const status = brokers.find(item => item.name.toLowerCase() === selected.toLowerCase());
   const keyLabel = selected === "Dhan" ? "Client ID" : selected === "Fyers" ? "App ID" : "API Key";
   const secretLabel = selected === "XTS" ? "API Secret" : "Access Token";
+  useEffect(() => {
+    const outcome = new URLSearchParams(window.location.search).get("oauth");
+    const messages: Record<string, string> = { expired: "FYERS authorization expired or belongs to another browser. Please connect again.", cancelled: "FYERS authorization was cancelled. Please connect again when ready.", failed: "FYERS authorization could not be verified. Please try again or contact your administrator." };
+    if (outcome && messages[outcome]) { setSelected("Fyers"); setError(messages[outcome]); window.history.replaceState(null, "", "/broker"); }
+  }, []);
+  async function startOAuth() {
+    if (busy) return;
+    setBusy(true); setError(""); setApiKey(""); setApiSecret("");
+    try {
+      const result = await protectedRequest<{ authorizationUrl: string }>("/brokers/fyers/oauth/start", { method: "POST" });
+      const target = new URL(result.authorizationUrl);
+      if (target.protocol !== "https:" || target.hostname !== "api-t1.fyers.in" || target.pathname !== "/api/v3/generate-authcode" || target.username || target.password || target.port) throw new Error("Invalid broker authorization destination.");
+      window.location.assign(target.href);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to start FYERS authorization."); setBusy(false); }
+  }
   async function connect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return;
     setBusy(true); setError("");
@@ -105,13 +120,14 @@ function BrokerSelection({ brokers, onConnected }: { brokers: Broker[]; onConnec
     finally { setBusy(false); }
   }
   return <section className="work-panel broker-form"><div className="panel-heading"><h2>Connect your broker</h2><span className="pill">STEP 3 OF 4</span></div><p>Select your broker and verify your market-data credentials to open the dashboard.</p><label>Broker<select aria-label="Broker" value={selected} disabled={busy} onChange={event => { setSelected(event.target.value); setApiKey(""); setApiSecret(""); setUseServer(false); setError(""); }}>{brokerNames.map(name => <option key={name}>{name}</option>)}</select></label>
+    {selected === "Fyers" && <div className="broker-oauth"><button type="button" className="gnk-button primary" onClick={startOAuth} disabled={busy || !status?.oauthAvailable}>{busy ? "Opening FYERS…" : "Connect with FYERS"}<span>↗</span></button><p className="small-note">{status?.oauthAvailable ? "Sign in on FYERS. GNK verifies the callback and opens your dashboard automatically. You can also enter an existing token below." : "Your administrator needs to enable FYERS authorization. You can verify an existing token below."}</p></div>}
     {status ? <><div className="notice">{selected === "XTS" ? "Use XTS market-data API credentials." : selected === "Dhan" ? "Use your Dhan Client ID and an Access Token generated in Dhan Web." : "Use your FYERS App ID and Access Token generated through FYERS authorization. An App Secret alone cannot authenticate this connection."} Credentials are sent over HTTPS to the backend for verification and are not saved. Passwords, MPINs, and TOTP codes are not needed.</div><form onSubmit={connect}>
       {status?.adminCredentialsAvailable && <label className="consent"><input type="checkbox" checked={useServer} disabled={busy} onChange={event => { setUseServer(event.target.checked); setApiKey(""); setApiSecret(""); }} />Use server-configured credentials (admin only)</label>}
       {!useServer && <div className="broker-credentials"><label htmlFor="broker-api-key">{keyLabel}<input id="broker-api-key" type="password" autoComplete="off" value={apiKey} onChange={event => setApiKey(event.target.value)} required maxLength={1024} disabled={busy} /></label><label htmlFor="broker-api-secret">{secretLabel}<input id="broker-api-secret" type="password" autoComplete="off" value={apiSecret} onChange={event => setApiSecret(event.target.value)} required maxLength={8192} disabled={busy} /></label></div>}
       {!status?.connectionAvailable && <p className="small-note">Administrator setup required: configure the broker-provided XTS market-data base URL on the server.</p>}
-      {error && <p className="error-message" role="alert">{error}</p>}
       <button className="gnk-button primary" disabled={busy || !status?.connectionAvailable || (!useServer && (!apiKey.trim() || !apiSecret))}>{busy ? "Verifying with broker…" : "Verify connection & open dashboard"}<span>↗</span></button>
     </form>{status?.status === "VERIFIED" && <p role="status">Broker login verified. <Link href="/dashboard">Open dashboard ↗</Link></p>}<p className="small-note">Verification lasts 10 minutes. Provider tokens are not retained; live feeds and account balances need further integration. Live orders remain disabled. REDIRECT_URL is not needed when verifying an existing token. FYERS token generation requires the callback registered with FYERS.</p></> : <><div className="notice">{selected} is a requested integration. Its adapter is not available in this release.</div><button className="gnk-button ghost" disabled>Broker authentication unavailable</button></>}
     <div className="broker-facts"><div><small>Credential verification</small>{status?.status.replaceAll("_", " ") ?? "UNAVAILABLE"}</div><div><small>Order execution</small>DISABLED</div></div>
+    {error && <p className="error-message" role="alert">{error}</p>}
   </section>;
 }

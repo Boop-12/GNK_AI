@@ -23,6 +23,9 @@ fi
 "${compose[@]}" up -d --wait postgres redis
 "${compose[@]}" run --rm --no-deps api alembic upgrade head
 "${compose[@]}" up -d --wait api web nginx
+# Refresh upstream container addresses after API/web replacement.
+"${compose[@]}" exec -T nginx nginx -t
+"${compose[@]}" exec -T nginx nginx -s reload
 # Require both database schema and Redis readiness before calling the release healthy.
 "${compose[@]}" exec -T api python -c "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8000/readyz', timeout=10).status == 200"
 curl --fail --silent --show-error --retry 5 --retry-delay 3 https://www.gnkalgo.com/ > /dev/null

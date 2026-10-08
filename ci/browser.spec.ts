@@ -110,3 +110,27 @@ for (const [id, name, label] of [['dhan', 'Dhan', 'Client ID'], ['fyers', 'Fyers
     await expect(page).toHaveURL(/dashboard/);
   });
 }
+
+test('FYERS OAuth uses the broker authorization destination and hides app secrets', async ({ page }) => {
+  await mockSession(page);
+  await page.route('**/api/v1/brokers', route => route.fulfill({ json: [{ broker: 'fyers', name: 'Fyers', status: 'DISCONNECTED', marketDataStatus: 'NOT_CONFIGURED', tradingStatus: 'NOT_CONFIGURED', connectionAvailable: true, oauthAvailable: true }] }));
+  await page.route('**/api/v1/brokers/fyers/oauth/start', async route => {
+    expect(route.request().method()).toBe('POST');
+    await route.fulfill({ json: { authorizationUrl: 'https://api-t1.fyers.in/api/v3/generate-authcode?state=fixture-state' } });
+  });
+  await page.route('https://api-t1.fyers.in/api/v3/generate-authcode?*', route => route.fulfill({ contentType: 'text/html', body: '<h1>FYERS login fixture</h1>' }));
+  await page.goto('/broker');
+  await page.getByLabel('Broker', { exact: true }).selectOption('Fyers');
+  await expect(page.getByLabel('App Secret', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Connect with FYERS' }).click();
+  await expect(page).toHaveURL('https://api-t1.fyers.in/api/v3/generate-authcode?state=fixture-state');
+  await expect(page.getByRole('heading', { name: 'FYERS login fixture' })).toBeVisible();
+});
+
+test('OAuth failure returns a useful broker message without opening dashboard', async ({ page }) => {
+  await mockSession(page);
+  await page.goto('/broker?oauth=failed');
+  await expect(page.getByRole('alert').filter({ hasText: 'FYERS authorization could not be verified' })).toBeVisible();
+  await expect(page).toHaveURL(/\/broker$/);
+  await expect(page.getByLabel('Broker', { exact: true })).toHaveValue('Fyers');
+});

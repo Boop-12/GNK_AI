@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.brokers.registry import validate_broker_settings
 from app.brokers.routes import router as brokers_router
+from app.brokers.oauth import CALLBACK_PATH, router as oauth_router
 from app.auth import router as auth_router
 from app.config import get_settings
 from app.users import router as users_router
@@ -27,6 +28,7 @@ app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 app.include_router(brokers_router, prefix="/api/v1")
+app.include_router(oauth_router, prefix="/api/v1")
 app.include_router(workspace_router, prefix="/api/v1")
 
 
@@ -53,6 +55,14 @@ async def security_headers(request, call_next):
 @app.get("/healthz", tags=["health"])
 def health():
     return {"status": "ok"}
+
+
+@app.middleware("http")
+async def redact_oauth_query(request, call_next):
+    if request.url.path == CALLBACK_PATH:
+        request.state.oauth_query = request.scope.get("query_string", b"")
+        request.scope["query_string"] = b""
+    return await call_next(request)
 
 
 @app.get("/readyz", tags=["health"])
