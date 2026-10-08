@@ -34,6 +34,8 @@ def client(monkeypatch):
     app.dependency_overrides[get_db] = override_db
     monkeypatch.setattr("app.auth.enforce_rate_limit", lambda *a, **k: None)
     monkeypatch.setattr("app.auth.send_reset_email", lambda *a, **k: None)
+    monkeypatch.setattr("app.brokers.routes.verification", lambda *a: None)
+    monkeypatch.setattr("app.brokers.connection.verification", lambda *a: None)
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

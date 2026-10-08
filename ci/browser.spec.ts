@@ -28,7 +28,7 @@ async function mockSession(page) {
     const user = { id: 1, name: 'Cloud Test', email: 'test@example.test', roles: ['user'], authorities: [] };
     const body = path.endsWith('/auth/refresh') ? { access_token: 'test-fixture-token' }
       : path.endsWith('/users/me') ? user
-      : path.endsWith('/workspace/status') ? { mode: 'PAPER_READ_ONLY', liveExecutionEnabled: false, brokerVerified: false, lastChecked: '2026-10-08T12:00:00Z', ai: { available: false, status: 'SETUP_REQUIRED' } }
+      : path.endsWith('/workspace/status') ? { mode: 'PAPER_READ_ONLY', liveExecutionEnabled: false, brokerVerified: true, lastChecked: '2026-10-08T12:00:00Z', ai: { available: false, status: 'SETUP_REQUIRED' } }
       : [];
     await route.fulfill({ json: body });
   });
@@ -63,4 +63,34 @@ test('broker selection stays unavailable and appearance persists', async ({ page
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'classic-light');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'cyan');
+});
+
+test('broker credentials redirect only after verification and clear secrets on failure', async ({ page }) => {
+  await mockSession(page);
+  const broker = { broker: 'xts', name: 'XTS', status: 'DISCONNECTED', marketDataStatus: 'NOT_CONFIGURED', tradingStatus: 'NOT_CONFIGURED', connectionAvailable: true, adminCredentialsAvailable: false };
+  await page.route('**/api/v1/brokers', route => route.fulfill({ json: [broker] }));
+  let accepted = false;
+  await page.route('**/api/v1/brokers/xts/connect', async route => {
+    expect(route.request().postDataJSON().api_secret).toBe('fixture-secret');
+    await route.fulfill(accepted ? { json: { ...broker, status: 'VERIFIED' } } : { status: 502, json: { detail: 'Broker rejected credentials' } });
+  });
+  await page.goto('/broker');
+  await page.getByLabel('API Key', { exact: true }).fill('fixture-key');
+  await page.getByLabel('API Secret', { exact: true }).fill('fixture-secret');
+  await page.getByRole('button', { name: /Verify connection/ }).click();
+  await expect(page.getByRole('alert')).toHaveText('Broker rejected credentials');
+  await expect(page).toHaveURL(/broker/);
+  await expect(page.getByLabel('API Secret', { exact: true })).toHaveValue('');
+  accepted = true;
+  await page.getByLabel('API Secret', { exact: true }).fill('fixture-secret');
+  await page.getByRole('button', { name: /Verify connection/ }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await expect(page.getByText('Available margin', { exact: true })).toBeVisible();
+});
+
+test('dashboard without broker verification returns to step three', async ({ page }) => {
+  await mockSession(page);
+  await page.route('**/api/v1/workspace/status', route => route.fulfill({ json: { brokerVerified: false, lastChecked: '2026-10-08T12:00:00Z', ai: { available: false } } }));
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL(/broker/);
 });

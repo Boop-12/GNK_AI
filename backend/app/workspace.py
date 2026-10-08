@@ -33,10 +33,13 @@ def ai_ready(settings) -> bool:
 
 
 @router.get("/status")
-def workspace_status(_: User = Depends(get_current_user)):
+def workspace_status(user: User = Depends(get_current_user)):
+    from app.brokers.connection import verification
+    from app.brokers.registry import enabled_brokers
+    verified = any(verification(user.id, item.identifier) for item in enabled_brokers(get_settings()))
     available = ai_ready(get_settings())
     return {"mode": "PAPER_READ_ONLY", "liveExecutionEnabled": False,
-            "brokerVerified": False, "lastChecked": datetime.now(timezone.utc).isoformat(),
+            "brokerVerified": verified, "lastChecked": datetime.now(timezone.utc).isoformat(),
             "ai": {"available": available, "status": "CONFIGURED" if available else "SETUP_REQUIRED"}}
 
 
