@@ -1,0 +1,61 @@
+name: Cloud verification
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e '.[dev]'
+        working-directory: backend
+      - run: pytest -q
+        working-directory: backend
+        env:
+          JWT_SECRET_KEY: test-only-secret-key-with-at-least-32-chars
+          DATABASE_URL: sqlite:///./test.db
+          APP_ENV: test
+          COOKIE_SECURE: 'false'
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_API_URL: ''
+      - run: npm install --no-save --package-lock=false @playwright/test@1.58.2
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --config ci/playwright.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-ui-checks
+          path: |
+            playwright-report/
+            test-results/
+  production-containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t gnk-api ./backend
+      - run: docker build -t gnk-web ./frontend
+      - name: Validate production deployment configuration
+        run: |
+          cp .env.example .env
+          printf '\nJWT_SECRET_KEY=%s\nPOSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" >> .env
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet

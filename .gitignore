@@ -1,0 +1,13 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.next/
+node_modules/
+*.py[cod]
+*.db
+/certbot/
+/backups/
+/test-results/
+/playwright-report/
+*.tsbuildinfo
