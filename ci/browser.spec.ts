@@ -75,10 +75,11 @@ test('broker credentials redirect only after verification and clear secrets on f
     await route.fulfill(accepted ? { json: { ...broker, status: 'VERIFIED' } } : { status: 502, json: { detail: 'Broker rejected credentials' } });
   });
   await page.goto('/broker');
+  await page.getByLabel('Broker', { exact: true }).selectOption('XTS');
   await page.getByLabel('API Key', { exact: true }).fill('fixture-key');
   await page.getByLabel('API Secret', { exact: true }).fill('fixture-secret');
   await page.getByRole('button', { name: /Verify connection/ }).click();
-  await expect(page.getByRole('alert')).toHaveText('Broker rejected credentials');
+  await expect(page.getByRole('alert').filter({ hasText: 'Broker rejected credentials' })).toBeVisible();
   await expect(page).toHaveURL(/broker/);
   await expect(page.getByLabel('API Secret', { exact: true })).toHaveValue('');
   accepted = true;
@@ -94,3 +95,18 @@ test('dashboard without broker verification returns to step three', async ({ pag
   await page.goto('/dashboard');
   await expect(page).toHaveURL(/broker/);
 });
+
+for (const [id, name, label] of [['dhan', 'Dhan', 'Client ID'], ['fyers', 'Fyers', 'App ID']]) {
+  test(`${name} verifies an access token before opening the dashboard`, async ({ page }) => {
+    await mockSession(page);
+    const broker = { broker: id, name, status: 'DISCONNECTED', marketDataStatus: 'NOT_CONFIGURED', tradingStatus: 'NOT_CONFIGURED', connectionAvailable: true, adminCredentialsAvailable: false };
+    await page.route('**/api/v1/brokers', route => route.fulfill({ json: [broker] }));
+    await page.route(`**/api/v1/brokers/${id}/connect`, route => route.fulfill({ json: { ...broker, status: 'VERIFIED' } }));
+    await page.goto('/broker');
+    await page.getByLabel('Broker', { exact: true }).selectOption(name);
+    await page.getByLabel(label, { exact: true }).fill('fixture-id');
+    await page.getByLabel('Access Token', { exact: true }).fill('fixture-access-token');
+    await page.getByRole('button', { name: /Verify connection/ }).click();
+    await expect(page).toHaveURL(/dashboard/);
+  });
+}

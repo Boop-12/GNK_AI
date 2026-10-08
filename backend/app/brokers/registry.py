@@ -12,6 +12,8 @@ class BrokerDefinition:
 # Registry entries are only added when this application has a reviewed adapter.
 BROKERS = {
     "xts": BrokerDefinition(identifier="xts", display_name="XTS"),
+    "dhan": BrokerDefinition(identifier="dhan", display_name="Dhan"),
+    "fyers": BrokerDefinition(identifier="fyers", display_name="Fyers"),
 }
 
 
@@ -42,8 +44,9 @@ def broker_status(settings: Settings, broker_id: str) -> dict:
                              settings.xts_interactive_secret_key.get_secret_value()))
         market_status = "DISCONNECTED" if market_ready else "NOT_CONFIGURED"
         trading_status = "DISCONNECTED" if trading_ready else "NOT_CONFIGURED"
-    else:  # Registry additions must define their own readiness checks.
-        market_status = "NOT_CONFIGURED"
+    else:
+        key, token = (settings.dhan_client_id, settings.dhan_access_token) if broker_id == "dhan" else (settings.fyers_app_id, settings.fyers_access_token)
+        market_status = "DISCONNECTED" if key and token.get_secret_value() else "NOT_CONFIGURED"
         trading_status = "NOT_CONFIGURED"
 
     configured = market_status != "NOT_CONFIGURED" or trading_status != "NOT_CONFIGURED"

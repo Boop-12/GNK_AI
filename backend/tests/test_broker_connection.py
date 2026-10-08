@@ -4,6 +4,7 @@ from app.brokers import routes
 from app.brokers.connection import verify_xts
 from app.config import Settings
 from conftest import register
+from app.brokers.connection import verify_profile
 
 
 @pytest.fixture
@@ -63,3 +64,46 @@ def test_provider_error_with_http_200_is_rejected_and_redacted(monkeypatch):
     with pytest.raises(HTTPException) as error:
         verify_xts("https://broker.example.test", "private-key", "private-secret")
     assert error.value.status_code == 502 and "private-secret" not in error.value.detail
+
+
+@pytest.mark.parametrize("broker,payload", [
+    ("dhan", b'{"dhanClientId":"12345","tokenValidity":"09/10/2026 15:37"}'),
+    ("fyers", b'{"s":"ok","code":200,"data":{"fy_id":"AB12345"}}'),
+])
+def test_profile_verification_uses_fixed_get_endpoint_and_private_header(monkeypatch, broker, payload):
+    calls = []
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def read(self, size): return payload
+    class Opener:
+        def open(self, request, timeout):
+            calls.append(request)
+            return Response()
+    monkeypatch.setattr("app.brokers.connection.build_opener", lambda *a: Opener())
+    verify_profile(broker, "12345", "private-token")
+    assert calls[0].get_method() == "GET"
+    assert calls[0].full_url in {"https://api.dhan.co/v2/profile", "https://api-t1.fyers.in/api/v3/profile"}
+    assert "private-token" not in calls[0].full_url
+
+
+def test_dhan_client_id_must_match_verified_profile(monkeypatch):
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def read(self, size): return b'{"dhanClientId":"someone-else","tokenValidity":"valid"}'
+    class Opener:
+        def open(self, request, timeout): return Response()
+    monkeypatch.setattr("app.brokers.connection.build_opener", lambda *a: Opener())
+    with pytest.raises(HTTPException):
+        verify_profile("dhan", "12345", "private-token")
+
+
+@pytest.mark.parametrize("broker", ["dhan", "fyers"])
+def test_token_broker_connect_success(connection, monkeypatch, broker):
+    client, headers, _ = connection
+    monkeypatch.setattr(routes, "get_settings", lambda: Settings(valid_brokers="dhan,fyers"))
+    monkeypatch.setattr(routes, "verify_profile", lambda *a: None)
+    result = client.post(f"/api/v1/brokers/{broker}/connect", headers=headers, json={"api_key": "12345", "api_secret": "private-token"})
+    assert result.status_code == 200 and result.json()["status"] == "VERIFIED"
+    assert "private-token" not in result.text

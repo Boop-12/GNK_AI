@@ -42,6 +42,27 @@ def verification(user_id: int, broker_id: str):
         raise HTTPException(status_code=503, detail="Broker verification temporarily unavailable") from None
 
 
+def verify_profile(broker_id: str, account_id: str, access_token: str):
+    """Fixed HTTPS endpoints; authenticate access without trading or persisting tokens."""
+    if broker_id == "dhan":
+        request = Request("https://api.dhan.co/v2/profile", headers={"access-token": access_token}, method="GET")
+    else:
+        request = Request("https://api-t1.fyers.in/api/v3/profile", headers={"Authorization": f"{account_id}:{access_token}"}, method="GET")
+    try:
+        with build_opener(NoRedirect()).open(request, timeout=15) as response:
+            raw = response.read(262145)
+        if len(raw) > 262144:
+            raise ValueError("Oversized response")
+        data = json.loads(raw)
+        if broker_id == "dhan":
+            if str(data.get("dhanClientId", "")) != account_id or not data.get("tokenValidity"):
+                raise ValueError("Account mismatch or invalid profile")
+        elif data.get("s") != "ok" or data.get("code") != 200 or not isinstance(data.get("data"), dict) or not data["data"].get("fy_id"):
+            raise ValueError("Invalid FYERS profile")
+    except (HTTPError, URLError, TimeoutError, ValueError, TypeError, AttributeError, OSError):
+        raise HTTPException(status_code=502, detail="Broker could not verify this account. Check the account/app ID and use a valid, unexpired Access Token.") from None
+
+
 def clear_verification(user_id: int, broker_id: str):
     try:
         _redis_client().delete(f"broker-verification:{user_id}:{broker_id}")

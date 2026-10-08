@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     reset_token_minutes: int = 20
     valid_brokers: str = ""
     redirect_url: str = ""
+    dhan_client_id: str = ""
+    dhan_access_token: SecretStr = SecretStr("")
+    fyers_app_id: str = ""
+    fyers_access_token: SecretStr = SecretStr("")
     xts_market_data_base_url: str = ""
     xts_market_data_app_key: str = ""
     xts_market_data_secret_key: SecretStr = SecretStr("")
