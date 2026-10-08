@@ -109,4 +109,3 @@ redeploy the resulting main commit. This retains history and .env/volumes. A cod
 rollback does not roll back data; inspect migration compatibility first. Database
 restoration is a separate operator procedure requiring an approved backup and
 maintenance window. Never use docker compose down -v for release or rollback.
-
