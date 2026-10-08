@@ -45,7 +45,7 @@ expected path. These bootstrap commands assume ports 80/443 are free for this st
 ```bash
 cd /opt/gnkalgo-ai
 mkdir -p certbot/www
-docker compose -f docker-compose.yml -f docker-compose.acme.yml up -d postgres redis nginx
+docker compose -f docker-compose.yml -f docker-compose.acme.yml up -d --no-deps nginx
 sudo certbot certonly --webroot --webroot-path /opt/gnkalgo-ai/certbot/www \
   --email YOUR_OPERATOR_EMAIL --agree-tos --no-eff-email \
   -d gnkalgo.com -d www.gnkalgo.com
@@ -109,3 +109,4 @@ redeploy the resulting main commit. This retains history and .env/volumes. A cod
 rollback does not roll back data; inspect migration compatibility first. Database
 restoration is a separate operator procedure requiring an approved backup and
 maintenance window. Never use docker compose down -v for release or rollback.
+

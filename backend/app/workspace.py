@@ -77,6 +77,6 @@ def research(data: ResearchIn, request: Request, user: User = Depends(get_curren
     if len(data.prompt.strip()) < 10:
         raise HTTPException(status_code=422, detail="Enter a research question of at least 10 characters.")
     enforce_rate_limit(request, "ai-research-ip", limit=20, window=3600)
-    enforce_rate_limit(request, f"ai-research-user-{user.id}", limit=10, window=3600)
+    enforce_rate_limit(request, "ai-research-user", limit=10, window=3600, subject=f"user-{user.id}")
     return {"text": request_research(settings, data.prompt), "source": "AI_PROVIDER",
             "hasLiveData": False, "generatedAt": datetime.now(timezone.utc).isoformat()}
